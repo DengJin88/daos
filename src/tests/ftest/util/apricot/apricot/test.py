@@ -29,10 +29,11 @@ from __future__ import print_function
 import os
 import json
 import re
+import distro
 from getpass import getuser
 
 from avocado import Test as avocadoTest
-from avocado import skip, TestFail, fail_on
+from avocado import skipIf, TestFail, fail_on
 
 import fault_config_utils
 from pydaos.raw import DaosContext, DaosLog, DaosApiError
@@ -57,9 +58,20 @@ from write_host_file import write_host_file
 
 
 # pylint: disable=invalid-name
-def skipForTicket(ticket):
-    """Skip a test with a comment about a ticket."""
-    return skip("Skipping until {} is fixed.".format(ticket))
+def skipForTicket(ticket, on_distros=[]):
+    """Skip a test with a comment about a ticket.
+       Optoinally, only on some distributions.
+    """
+
+    skip_test = True
+    if on_distros:
+        # Only skip a test if the current distribution is specified
+        # Do not skip this test if the distro is not specified
+        skip_test = "-".join(distro.linux_distribution(
+            full_distribution_name=False)[:2]) in on_distros
+
+    return skipIf(skip_test, "Skipping until {} is fixed.".format(ticket))
+
 # pylint: enable=invalid-name
 
 

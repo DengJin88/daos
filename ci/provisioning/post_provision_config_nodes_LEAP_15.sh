@@ -12,9 +12,9 @@ post_provision_config_nodes() {
     #                 libpmemblk munge-libs munge slurm             \
     #                 slurm-example-configs slurmctld slurm-slurmmd
     #fi
-    
+
     # Temp fix for broken mirror until snapshot is rebuilt to not use it.
-    zypper --non-interactive mr -d openSUSE-Leap-15.1-1 || true 
+    zypper --non-interactive mr -d openSUSE-Leap-15.1-1 || true
     zypper --non-interactive mr -d openSUSE-Leap-15.1-Non-Oss || true
     zypper --non-interactive mr -d openSUSE-Leap-15.1-Oss || true
     zypper --non-interactive mr -d openSUSE-Leap-15.1-Update || true
@@ -45,7 +45,7 @@ post_provision_config_nodes() {
                                 ipmctl
     zypper --non-interactive rr 15.2_oss
     rpm -qa | grep kernel
-    
+
     if [ -n "$DAOS_STACK_GROUP_REPO" ]; then
          # rm -f /etc/yum.repos.d/*"$DAOS_STACK_GROUP_REPO"
         zypper --non-interactive ar "$REPOSITORY_URL"/"$DAOS_STACK_GROUP_REPO" daos-stack-group-repo
@@ -54,12 +54,12 @@ post_provision_config_nodes() {
         rpm --import 'https://download.opensuse.org/repositories/science:/HPC/openSUSE_Leap_15.1/repodata/repomd.xml.key' ||
         rpm --import 'https://provo-mirror.opensuse.org/repositories/science:/HPC/openSUSE_Leap_15.1/repodata/repomd.xml.key'
     fi
-    
+
     if [ -n "$DAOS_STACK_LOCAL_REPO" ]; then
         zypper --non-interactive ar --gpgcheck-allow-unsigned "$REPOSITORY_URL"/"$DAOS_STACK_LOCAL_REPO" daos-stack-local-repo
         zypper --non-interactive mr --no-gpgcheck daos-stack-local-repo
     fi
-    
+
     if [ -n "$INST_REPOS" ]; then
         for repo in $INST_REPOS; do
             branch="master"
@@ -90,12 +90,12 @@ post_provision_config_nodes() {
         fi
     done
     curl -v -L 'https://mirrors.kernel.org/opensuse/update/leap/15.1/non-oss/repodata/repomd.xml' || true
-    
+
     #if [ -n "$INST_RPMS" ]; then
         #yum -y erase $INST_RPMS
     #fi
-    if ! zypper --non-interactive in ed nfs-client ipmctl ndctl sudo \
-                                     nfs-kernel-server               \
+    if ! zypper --non-interactive in ed nfs-client ipmctl ndctl sudo  \
+                                     nfs-kernel-server python2-distro \
                                      $INST_RPMS; then
         rc=${PIPESTATUS[0]}
         for file in /etc/zypp/repos.d/*.repo; do

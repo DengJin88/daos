@@ -221,7 +221,7 @@ EOF
         else
             unplumb+=(\\\$addr/\\\$bits)
         fi
-    done < <(ip addr ls dev eth0 | 
+    done < <(ip addr ls dev eth0 |
              sed -n -e 's/^  *inet \(.*\)\/\([0-9]*\) .*/\1 \2/p')
     if \\\$plumbed; then
         for i in \\\${unplumb[@]}; do
