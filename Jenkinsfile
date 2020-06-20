@@ -175,10 +175,11 @@ def sanitized_JOB_NAME = JOB_NAME.toLowerCase().replaceAll('/', '-').replaceAll(
 def functional_rpms = "openmpi3 hwloc ndctl " +
                       "ior-hpc-cart-4-daos-0 " +
                       "romio-tests-cart-4-daos-0 hdf5-tests-cart-4-daos-0 " +
-                      "testmpio-cart-4-daos-0 fio"
+                      "testmpio-cart-4-daos-0 fio " +
+                      "mpi4py-tests-cart-4-daos-0"
 // need to exclude openmpi until we remove it from the repo
-def el7_functional_rpms  = "--exclude openmpi " + functional_rpms + " mpi4py-tests-cart-4-daos-0"
-def leap15_functional_rpms  = functional_rpms + ' lua-lmod mpich-3.3-5'
+def el7_functional_rpms  = "--exclude openmpi " + functional_rpms
+def leap15_functional_rpms  = functional_rpms + ' lua-lmod'
 
 
 def rpm_test_pre = '''if git show -s --format=%B | grep "^Skip-test: true"; then
