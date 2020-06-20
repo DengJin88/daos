@@ -838,10 +838,6 @@ func (p *Provider) getUIDs(requested []string) ([]string, error) {
 		return nil, err
 	}
 
-	if len(modules) == 0 {
-		return nil, errors.New("no SCM modules")
-	}
-
 	uids := make([]string, 0, len(modules))
 	if len(requested) == 0 {
 		for _, m := range modules {
@@ -892,6 +888,10 @@ func (p *Provider) UpdateFirmware(req FirmwareUpdateRequest) (*FirmwareUpdateRes
 	uids, err := p.getUIDs(req.Devices)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(uids) == 0 {
+		return nil, errors.New("no SCM modules")
 	}
 
 	resp := &FirmwareUpdateResponse{

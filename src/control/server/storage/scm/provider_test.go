@@ -919,7 +919,9 @@ func TestProvider_QueryFirmware(t *testing.T) {
 			expErr:     errors.New("mock discovery"),
 		},
 		"no modules": {
-			expErr: errors.New("no SCM modules"),
+			expRes: &FirmwareQueryResponse{
+				FirmwareInfo: map[string]storage.ScmFirmwareInfo{},
+			},
 		},
 		"success": {
 			backendCfg: &MockBackendConfig{

@@ -28,6 +28,7 @@ import (
 	"context"
 
 	ctlpb "github.com/daos-stack/daos/src/control/common/proto/ctl"
+	"github.com/daos-stack/daos/src/control/server/storage/scm"
 )
 
 // FirmwareQuery implements the method defined for the control service if
@@ -37,6 +38,29 @@ import (
 // caller's request parameters. It can fetch firmware information for NVMe, SCM,
 // or both.
 func (svc *ControlService) FirmwareQuery(parent context.Context, pbReq *ctlpb.FirmwareQueryReq) (*ctlpb.FirmwareQueryResp, error) {
-	// TODO KJ
-	return nil, nil
+	svc.log.Debug("received FirmwareQuery RPC")
+
+	pbResp := new(ctlpb.FirmwareQueryResp)
+
+	if pbReq.QueryScm {
+		queryResp, err := svc.scm.QueryFirmware(scm.FirmwareQueryRequest{})
+		if err != nil {
+			return nil, err
+		}
+
+		pbResp.ScmResults = make([]*ctlpb.ScmFirmwareQueryResp, 0, len(queryResp.FirmwareInfo))
+		for uid, info := range queryResp.FirmwareInfo {
+			pbResult := &ctlpb.ScmFirmwareQueryResp{
+				Uid:               uid,
+				ActiveVersion:     info.ActiveVersion,
+				StagedVersion:     info.StagedVersion,
+				ImageMaxSizeBytes: info.ImageMaxSizeBytes,
+				UpdateStatus:      uint32(info.UpdateStatus),
+			}
+			pbResp.ScmResults = append(pbResp.ScmResults, pbResult)
+		}
+	}
+
+	c.log.Debug("responding to FirmwareQuery RPC")
+	return pbResp, nil
 }

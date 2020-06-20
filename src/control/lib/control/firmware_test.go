@@ -32,8 +32,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/daos-stack/daos/src/control/common"
+	ctlpb "github.com/daos-stack/daos/src/control/common/proto/ctl"
 	"github.com/daos-stack/daos/src/control/lib/hostlist"
 	"github.com/daos-stack/daos/src/control/logging"
+	"github.com/daos-stack/daos/src/control/server/storage"
 )
 
 func createTestHostSet(t *testing.T, hosts string) *hostlist.HostSet {
@@ -45,12 +47,60 @@ func createTestHostSet(t *testing.T, hosts string) *hostlist.HostSet {
 }
 
 func TestControl_FirmwareQuery(t *testing.T) {
+	pbResults := []*ctlpb.ScmFirmwareQueryResp{
+		{
+			Uid:               "TestUid1",
+			Handle:            1,
+			ActiveVersion:     "ACTIVE1",
+			StagedVersion:     "STAGED",
+			ImageMaxSizeBytes: 3200,
+			UpdateStatus:      uint32(storage.ScmUpdateStatusStaged),
+		},
+		{
+			Uid:               "TestUid2",
+			Handle:            2,
+			ActiveVersion:     "ACTIVE2",
+			StagedVersion:     "",
+			ImageMaxSizeBytes: 6400,
+			UpdateStatus:      uint32(storage.ScmUpdateStatusSuccess),
+		},
+		{
+			Uid:    "TestUid3",
+			Handle: 3,
+			Error:  "Failed getting firmware info",
+		},
+	}
+
+	expResults := make([]*SCMFirmwareQueryResult, 0, len(pbResults))
+	for _, pbRes := range pbResults {
+		res := &SCMFirmwareQueryResult{
+			DeviceUID:    pbRes.Uid,
+			DeviceHandle: pbRes.Handle,
+			Info: storage.ScmFirmwareInfo{
+				ActiveVersion:     pbRes.ActiveVersion,
+				StagedVersion:     pbRes.StagedVersion,
+				ImageMaxSizeBytes: pbRes.ImageMaxSizeBytes,
+				UpdateStatus:      storage.ScmFirmwareUpdateStatus(pbRes.UpdateStatus),
+			},
+		}
+
+		if pbRes.Error != "" {
+			res.Error = errors.New(pbRes.Error)
+		}
+
+		expResults = append(expResults, res)
+	}
+
 	for name, tc := range map[string]struct {
 		mic     *MockInvokerConfig
 		req     *FirmwareQueryReq
 		expResp *FirmwareQueryResp
 		expErr  error
 	}{
+		"nothing requested": {
+			req:    &FirmwareQueryReq{},
+			expErr: errors.New("no device types requested"),
+		},
 		"local failure": {
 			req: &FirmwareQueryReq{SCM: true},
 			mic: &MockInvokerConfig{
@@ -74,6 +124,19 @@ func TestControl_FirmwareQuery(t *testing.T) {
 				},
 			},
 		},
+		"SCM success": {
+			req: &FirmwareQueryReq{SCM: true},
+			mic: &MockInvokerConfig{
+				UnaryResponse: MockMSResponse("host1", nil, &ctlpb.FirmwareQueryResp{
+					ScmResults: pbResults,
+				}),
+			},
+			expResp: &FirmwareQueryResp{
+				HostSCMFirmware: map[string][]*SCMFirmwareQueryResult{
+					"host1": expResults,
+				},
+			},
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			log, buf := logging.NewTestLogger(t.Name())
@@ -94,21 +157,23 @@ func TestControl_FirmwareQuery(t *testing.T) {
 			}
 
 			cmpOpts := []cmp.Option{
-				cmp.Comparer(func(r1, r2 *FirmwareQueryResp) bool {
-					if len(r1.HostErrors) != len(r2.HostErrors) {
+				cmp.Comparer(func(e1, e2 error) bool {
+					if e1 == e2 {
+						return true
+					}
+					if e1 == nil || e2 == nil {
 						return false
 					}
-					for errName, errorSet1 := range r1.HostErrors {
-						errorSet2, ok := r2.HostErrors[errName]
-						if !ok {
-							return false
-						}
-						if errorSet2.HostSet.String() != errorSet1.HostSet.String() {
-							return false
-						}
+					if e1.Error() == e2.Error() {
+						return true
 					}
-					// TODO KJ: Compare successful response
-					return true
+					return false
+				}),
+				cmp.Comparer(func(h1, h2 hostlist.HostSet) bool {
+					if h1.String() == h2.String() {
+						return true
+					}
+					return false
 				}),
 			}
 			if diff := cmp.Diff(tc.expResp, gotResp, cmpOpts...); diff != "" {

@@ -63,6 +63,10 @@ type (
 // addHostResponse is responsible for validating the given HostResponse
 // and adding it to the FirmwareQueryResp.
 func (ssp *FirmwareQueryResp) addHostResponse(hr *HostResponse) error {
+	if ssp.HostSCMFirmware == nil {
+		ssp.HostSCMFirmware = make(map[string][]*SCMFirmwareQueryResult)
+	}
+
 	pbResp, ok := hr.Message.(*ctlpb.FirmwareQueryResp)
 	if !ok {
 		return errors.Errorf("unable to unpack message: %+v", hr.Message)
@@ -74,9 +78,20 @@ func (ssp *FirmwareQueryResp) addHostResponse(hr *HostResponse) error {
 		devResult := &SCMFirmwareQueryResult{
 			DeviceUID:    pbScmRes.Uid,
 			DeviceHandle: pbScmRes.Handle,
+			Info: storage.ScmFirmwareInfo{
+				ActiveVersion:     pbScmRes.ActiveVersion,
+				StagedVersion:     pbScmRes.StagedVersion,
+				ImageMaxSizeBytes: pbScmRes.ImageMaxSizeBytes,
+				UpdateStatus:      storage.ScmFirmwareUpdateStatus(pbScmRes.UpdateStatus),
+			},
+		}
+		if pbScmRes.Error != "" {
+			devResult.Error = errors.New(pbScmRes.Error)
 		}
 		scmResults = append(scmResults, devResult)
 	}
+
+	ssp.HostSCMFirmware[hr.Addr] = scmResults
 	return nil
 }
 
@@ -86,6 +101,10 @@ func (ssp *FirmwareQueryResp) addHostResponse(hr *HostResponse) error {
 // (successful or otherwise) are received, and returns a single response
 // structure containing results for all host firmware query operations.
 func FirmwareQuery(ctx context.Context, rpcClient UnaryInvoker, req *FirmwareQueryReq) (*FirmwareQueryResp, error) {
+	if !req.SCM && !req.NVMe {
+		return nil, errors.New("no device types requested")
+	}
+
 	req.setRPC(func(ctx context.Context, conn *grpc.ClientConn) (proto.Message, error) {
 		return ctlpb.NewMgmtCtlClient(conn).FirmwareQuery(ctx, &ctlpb.FirmwareQueryReq{
 			QueryScm:  req.SCM,
