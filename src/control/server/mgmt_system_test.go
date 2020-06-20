@@ -267,7 +267,7 @@ func TestServer_MgmtSvc_PrepShutdownRanks(t *testing.T) {
 			defer common.ShowBufferOnFailure(t, buf)
 
 			ioserverCount := maxIOServers
-			svc := newTestMgmtSvcMulti(log, ioserverCount, tc.setupAP)
+			svc := newTestMgmtSvcMulti(t, log, ioserverCount, tc.setupAP)
 			for i, srv := range svc.harness.instances {
 				if tc.missingSB {
 					srv._superblock = nil
@@ -419,7 +419,7 @@ func TestServer_MgmtSvc_StopRanks(t *testing.T) {
 				tc.ioserverCount = maxIOServers
 			}
 
-			svc := newTestMgmtSvcMulti(log, tc.ioserverCount, tc.setupAP)
+			svc := newTestMgmtSvcMulti(t, log, tc.ioserverCount, tc.setupAP)
 			for i, srv := range svc.harness.instances {
 				if tc.missingSB {
 					srv._superblock = nil
@@ -618,7 +618,7 @@ func TestServer_MgmtSvc_PingRanks(t *testing.T) {
 			defer common.ShowBufferOnFailure(t, buf)
 
 			ioserverCount := maxIOServers
-			svc := newTestMgmtSvcMulti(log, ioserverCount, tc.setupAP)
+			svc := newTestMgmtSvcMulti(t, log, ioserverCount, tc.setupAP)
 			for i, srv := range svc.harness.instances {
 				if tc.missingSB {
 					srv._superblock = nil
@@ -743,7 +743,7 @@ func TestServer_MgmtSvc_ResetFormatRanks(t *testing.T) {
 
 			ctx := context.Background()
 
-			svc := newTestMgmtSvcMulti(log, tc.ioserverCount, tc.setupAP)
+			svc := newTestMgmtSvcMulti(t, log, tc.ioserverCount, tc.setupAP)
 			for i, srv := range svc.harness.instances {
 				if tc.missingSB {
 					srv._superblock = nil
@@ -885,7 +885,7 @@ func TestServer_MgmtSvc_StartRanks(t *testing.T) {
 
 			ctx := context.Background()
 
-			svc := newTestMgmtSvcMulti(log, tc.ioserverCount, tc.setupAP)
+			svc := newTestMgmtSvcMulti(t, log, tc.ioserverCount, tc.setupAP)
 			for i, srv := range svc.harness.instances {
 				if tc.missingSB {
 					srv._superblock = nil

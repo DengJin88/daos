@@ -9,66 +9,62 @@ control plane and will be documented in a future revision.
 
 Useful admin dmg commands to query NVMe SSD health:
 
-- Query Per-Server Metadata (SMD): `dmg storage query smd`
+- Query Per-Server Metadata (SMD): `dmg storage query (list-devices|list-pools)`
 
 Queries persistently stored device and pool metadata tables. The device table
 maps device UUID to attached VOS target IDs. The pool table maps VOS target IDs
 to attached SPDK blob IDs.
 ```bash
-$ dmg -l boro-11 storage query smd --devices --pools
-boro-11:10001: connected
-SMD Device List:
-boro-11:10001:
-        Device:
-                UUID: 5bd91603-d3c7-4fb7-9a71-76bc25690c19
-                VOS Target IDs: 0 1 2 3
-SMD Pool List:
-boro-11:10001:
-        Pool:
-                UUID: 01b41f76-a783-462f-bbd2-eb27c2f7e326
-                VOS Target IDs: 0 1 3 2
-                SPDK Blobs: 4294967404 4294967405 4294967407 4294967406
+$ dmg -l boro-11 storage query list-devices
+-------
+boro-11
+-------
+  Devices
+    UUID:5bd91603-d3c7-4fb7-9a71-76bc25690c19 Targets:[0 1 2 3] Rank:0 State:NORMAL
+    UUID:80c9f1be-84b9-4318-a1be-c416c96ca48b Targets:[0 1 2 3] Rank:1 State:FAULTY
+```
+```bash
+$ dmg -l boro-11 storage query list-pools
+-------
+boro-11
+-------
+  Pools
+    UUID:08d6839b-c71a-4af6-901c-28e141b2b429
+      Rank:0 Targets:[0 1 2 3] Blobs:[4294967404 4294967405 4294967407 4294967406]
+      Rank:1 Targets:[0 1 2 3] Blobs:[4294967404 4294967405 4294967407 4294967406]
 ```
 
-- Query Blobstore Health Data: `dmg storage query blobstore-health`
+- Query Storage Device Health Data: `dmg storage query device-health`
 
 Queries in-memory health data for the SPDK blobstore (i.e, NVMe SSD). This
 includes a subset of the SPDK device health stats, as well as I/O error and
 checksum counters.
 ```bash
-$ dmg -l boro-11 storage query blobstore-health
-  --devuuid=5bd91603-d3c7-4fb7-9a71-76bc25690c19 -l=boro-11:10001
-boro-11:10001: connected
-Blobstore Health Data:
-boro-11:10001:
-        Device UUID: 5bd91603-d3c7-4fb7-9a71-76bc25690c19
-        Read errors: 0
-        Write errors: 0
-        Unmap errors: 0
-        Checksum errors: 0
-        Device Health:
-                Error log entries: 0
-                Media errors: 0
-                Temperature: 289
-                Temperature: OK
-                Available Spare: OK
-                Device Reliability: OK
-                Read Only: OK
-                Volatile Memory Backup: OK
-```
-
-- Query Persistent Device State: `dmg storage query device-state`
-
-Queries the current persistently stored device state of the specified NVMe SSD
-(either NORMAL or FAULTY).
-```bash
-$ dmg storage query device-state --devuuid=5bd91603-d3c7-4fb7-9a71-76bc25690c19
--l=boro-11:10001
-boro-11:10001: connected
-Device State Info:
-boro-11:10001:
-        Device UUID: 5bd91603-d3c7-4fb7-9a71-76bc25690c19
-        State: NORMAL
+$ dmg -l boro-11 storage query device-health
+  --uuid=5bd91603-d3c7-4fb7-9a71-76bc25690c19
+-------
+boro-11
+-------
+  Devices
+    UUID:5bd91603-d3c7-4fb7-9a71-76bc25690c19 Targets:[0] Rank:1 State:NORMAL
+      Health Stats:
+        Temperature:289K(15C)
+        Controller Busy Time:0s
+        Power Cycles:0
+        Power On Duration:0s
+        Unsafe Shutdowns:0
+        Media Errors:0
+        Read Errors:0
+        Write Errors:0
+        Unmap Errors:0
+        Checksum Errors:0
+        Error Log Entries:0
+      Critical Warnings:
+        Temperature: OK
+        Available Spare: OK
+        Device Reliability: OK
+        Read Only: OK
+        Volatile Memory Backup: OK
 ```
 
 - Manually Set Device State to FAULTY: `dmg storage set nvme-faulty`
@@ -78,13 +74,12 @@ which will trigger faulty device reaction (all targets on the SSD will be
 rebuilt and the SSD will remain in an OUT state until reintegration is
 supported).
 ```bash
-$ dmg storage set nvme-faulty --devuuid=5bd91603-d3c7-4fb7-9a71-76bc25690c19
--l=boro-11:10001
-boro-11:10001: connected
-Device State Info:
-boro-11:10001:
-        Device UUID: 5bd91603-d3c7-4fb7-9a71-76bc25690c19
-        State: FAULTY
+$ dmg -l boro-11 storage set nvme-faulty --uuid=5bd91603-d3c7-4fb7-9a71-76bc25690c19
+-------
+boro-11
+-------
+  Devices
+    UUID:5bd91603-d3c7-4fb7-9a71-76bc25690c19 Targets:[0] Rank:1 State:FAULTY
 ```
 
 ## System Operations
