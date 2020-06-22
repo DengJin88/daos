@@ -865,17 +865,19 @@ set_daos_iod(bool create, daos_iod_t *iod, char *buf, size_t size)
 }
 
 static void
-create_sb(bool create, daos_iod_t *iods, daos_key_t *dkey)
+set_inode_params(bool for_update, daos_iod_t *iods, daos_key_t *dkey)
 {
 	int i = 0;
 
 	d_iov_set(dkey, SB_DKEY, strlen(SB_DKEY));
 
-	set_daos_iod(create, &iods[i++], MAGIC_NAME, sizeof(dfs_magic_t));
-	set_daos_iod(create, &iods[i++], SB_VERSION_NAME, sizeof(dfs_sb_ver_t));
-	set_daos_iod(create, &iods[i++], LAYOUT_NAME, sizeof(dfs_layout_ver_t));
-	set_daos_iod(create, &iods[i++], CS_NAME, sizeof(daos_size_t));
-	set_daos_iod(create, &iods[i++], OC_NAME, sizeof(daos_oclass_id_t));
+	set_daos_iod(for_update, &iods[i++], MAGIC_NAME, sizeof(dfs_magic_t));
+	set_daos_iod(for_update, &iods[i++],
+		SB_VERSION_NAME, sizeof(dfs_sb_ver_t));
+	set_daos_iod(for_update, &iods[i++],
+		LAYOUT_NAME, sizeof(dfs_layout_ver_t));
+	set_daos_iod(for_update, &iods[i++], CS_NAME, sizeof(daos_size_t));
+	set_daos_iod(for_update, &iods[i++], OC_NAME, sizeof(daos_oclass_id_t));
 }
 
 static int
@@ -920,7 +922,7 @@ open_sb(daos_handle_t coh, bool create, dfs_attr_t *attr, daos_handle_t *oh)
 		sgls[i].sg_iovs		= &sg_iovs[i];
 	}
 
-	create_sb(create, iods, &dkey);
+	set_inode_params(create, iods, &dkey);
 
 	/** create the SB and exit */
 	if (create) {
@@ -995,7 +997,7 @@ err:
 }
 
 int
-get_sb_layout(daos_key_t *dkey, daos_iod_t *iods[], int *akey_count,
+dfs_get_sb_layout(daos_key_t *dkey, daos_iod_t *iods[], int *akey_count,
 	 int *dfs_entry_size)
 {
 	if (dkey == NULL || akey_count == NULL)
@@ -1007,7 +1009,7 @@ get_sb_layout(daos_key_t *dkey, daos_iod_t *iods[], int *akey_count,
 
 	*akey_count = SB_AKEYS;
 	*dfs_entry_size = sizeof(struct dfs_entry);
-	create_sb(true, *iods, dkey);
+	set_inode_params(true, *iods, dkey);
 
 	return 0;
 }

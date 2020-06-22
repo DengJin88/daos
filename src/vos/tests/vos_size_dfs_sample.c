@@ -37,6 +37,10 @@
 #define DEFAULT_DFS_EXAMPLE_NAME "vos_dfs_sample.yaml"
 
 
+int
+dfs_get_sb_layout(daos_key_t *dkey, daos_iod_t *iods[], int *akey_count,
+		int *dfs_entry_size);
+
 char *
 alloc_fname(const char *requested)
 {
@@ -272,7 +276,8 @@ main(int argc, char **argv)
 	if (fp == NULL)
 		goto exit_1;
 
-	rc = get_sb_layout(&dkey_sb, &akey_sb, &akey_count, &dfs_inode_size);
+	rc = dfs_get_sb_layout(&dkey_sb, &akey_sb, &akey_count,
+		&dfs_inode_size);
 	if (rc) {
 		goto exit_1;
 	}

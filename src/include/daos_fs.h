@@ -71,19 +71,6 @@ typedef struct {
 } dfs_iod_t;
 
 /**
- * Get the DFS superblock D-Key and A-Keys
- *
- * \param[out] dkey DFS superblock D-Key
- * \param[out] iods DFS superblock A-keys
- * \param[out] dfs_entry_size number of superblock A-keys
- *
- * \return              0 on success, errno code on failure.
- */
-int
-get_sb_layout(daos_key_t *dkey, daos_iod_t *iods[], int *akey_count,
-		int *dfs_entry_size);
-
-/**
  * Create a DFS container with the the POSIX property layout set.
  * Optionally set attributes for hints on the container.
  *
