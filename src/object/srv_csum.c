@@ -419,10 +419,17 @@ cc_add_csum(struct csum_context *ctx, struct dcs_csum_info *info,
 }
 
 static size_t
-cc_biov_bytes_left(const struct csum_context *ctx) {
+cc_biov_bytes_left(const struct csum_context *ctx)
+{
 	struct bio_iov *biov = cc2iov(ctx);
 
 	return bio_iov2req_len(biov) - ctx->cc_bsgl_idx->iov_offset;
+}
+
+static bool
+cc_bsgl_remaining(struct csum_context *ctx)
+{
+	return (*ctx).cc_bsgl_idx->iov_idx >= (*ctx).cc_bsgl->bs_nr_out;
 }
 
 /** For a given recx, add checksums to the output csum info. Data will come
@@ -451,6 +458,8 @@ cc_add_csums_for_recx(struct csum_context *ctx, daos_recx_t *recx,
 	cc_set_iov2ranges(ctx, cc2iov(ctx));
 
 	sc = (recx->rx_idx * rec_size) / rec_chunksize;
+	C_TRACE("Calculating %d checksum(s) for Array Value "
+			DF_RECX"\n", chunk_nr, DP_RECX(*recx));
 	for (c = 0; c < chunk_nr; c++, sc++) { /** for each chunk/checksum */
 		ctx->cc_recx_chunk = csum_recx_chunkidx2range(recx, rec_size,
 							      rec_chunksize, c);
@@ -469,8 +478,7 @@ cc_add_csums_for_recx(struct csum_context *ctx, daos_recx_t *recx,
 			/** All out of data. Just return because request may
 			 * be larger than previously written data
 			 */
-			if (ctx->cc_bsgl_idx->iov_idx >=
-			    ctx->cc_bsgl->bs_nr_out)
+			if (cc_bsgl_remaining(ctx))
 				break;
 
 			rc = cc_add_csum(ctx, info, c);
@@ -558,6 +566,8 @@ ds_csum_add2iod(daos_iod_t *iod, struct daos_csummer *csummer,
 		struct dcs_csum_info	*info = &iod_csums->ic_data[i];
 
 		if (ctx.cc_rec_len > 0 && ci_is_valid(info)) {
+			if (cc_bsgl_remaining(&ctx))
+				break;
 			rc = cc_add_csums_for_recx(&ctx, recx, info);
 			if (rc != 0) {
 				D_ERROR("Failed to add csum for "
@@ -584,6 +594,7 @@ ds_csum_calc_needed(struct daos_csum_range *raw_ext,
 	bool	is_only_extent_in_chunk;
 	bool	biov_extends_past_chunk;
 	bool	using_whole_chunk_of_extent;
+	bool	biov_starts_at_beginning_of_chunk;
 
 	/** in order to use stored csum
 	 * - a new csum must not have already been started (would mean a
@@ -599,12 +610,16 @@ ds_csum_calc_needed(struct daos_csum_range *raw_ext,
 				  (!has_next_biov || /** nothing after */
 				   biov_extends_past_chunk);
 
+	biov_starts_at_beginning_of_chunk = req_ext->dcr_lo <=
+					    max(raw_ext->dcr_lo, chunk->dcr_lo);
 
-	using_whole_chunk_of_extent = biov_extends_past_chunk ||
-				      (req_ext->dcr_hi < chunk->dcr_hi &&
-				       req_ext->dcr_lo == raw_ext->dcr_lo &&
-				       req_ext->dcr_hi == raw_ext->dcr_hi
-				       );
+	using_whole_chunk_of_extent =
+		(biov_extends_past_chunk &&
+		 biov_starts_at_beginning_of_chunk) ||
+		(req_ext->dcr_hi < chunk->dcr_hi &&
+		 req_ext->dcr_lo == raw_ext->dcr_lo &&
+		 req_ext->dcr_hi == raw_ext->dcr_hi
+		);
 
 	return !(is_only_extent_in_chunk && using_whole_chunk_of_extent);
 }
