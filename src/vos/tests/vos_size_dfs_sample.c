@@ -32,14 +32,10 @@
 #include <getopt.h>
 #include <daos/debug.h>
 #include <daos.h>
-#include <daos_fs.h>
+#include "daos_fs_internal.h"
 
 #define DEFAULT_DFS_EXAMPLE_NAME "vos_dfs_sample.yaml"
 
-
-int
-dfs_get_sb_layout(daos_key_t *dkey, daos_iod_t *iods[], int *akey_count,
-		int *dfs_entry_size);
 
 char *
 alloc_fname(const char *requested)
