@@ -20,7 +20,7 @@
  * Any reproduction of computer software, computer software documentation, or
  * portions thereof marked with this legend must also reproduce the markings.
  */
-/* This generates a summary of struct sizes to be used by vos_estimate.py
+/* This generates a summary of struct sizes to be used by vos_size.py
  * to generate metadata overhead estimates
  */
 #define D_LOGFAC	DD_FAC(tests)
@@ -280,7 +280,7 @@ main(int argc, char **argv)
 
 	fprintf(fp, "---\n"
 		"# Sample conflig file DFS files and directories\n"
-		"num_pools: 1000\n\n");
+		"num_shards: 1000\n\n");
 
 	print_dkey(fp, &dkey_sb, akey_sb, akey_count);
 	print_dfs_example_remainder(fp, dfs_inode_size);

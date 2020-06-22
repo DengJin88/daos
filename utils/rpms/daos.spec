@@ -365,8 +365,9 @@ getent passwd daos_server >/dev/null || useradd -M daos_server
 %{_libdir}/*.a
 
 %changelog
-* Tue Jun 16 2020 Jonathan Martinez Montes <jonathan.martinez.montes@intel.com> - 1.1.0-24
-- Add new daos utility binary
+* Tue Jun 22 2020 Jonathan Martinez Montes <jonathan.martinez.montes@intel.com> - 1.1.0-24
+- Add the vos_size_dfs_sample tool. It is used to generate dynamically
+  the vos_dfs_sample.yaml file using the real DFS super block data.
 
 * Fri Jun 05 2020 Ryon Jensen <ryon.jensen@intel.com> - 1.1.0-23
 - Add libisa-l_crypto dependency
