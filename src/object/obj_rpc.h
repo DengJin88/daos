@@ -310,6 +310,158 @@ CRT_RPC_DECLARE(obj_sync, DAOS_ISEQ_OBJ_SYNC, DAOS_OSEQ_OBJ_SYNC)
 
 CRT_RPC_DECLARE(obj_migrate, DAOS_ISEQ_OBJ_MIGRATE, DAOS_OSEQ_OBJ_MIGRATE)
 
+enum daos_cpd_sub_opc {
+	DCSO_UPDATE		= 0,
+	DCSO_PUNCH_OBJ		= 1,
+	DCSO_PUNCH_DKEY		= 2,
+	DCSO_PUNCH_AKEY		= 3,
+	DCSO_READ		= 4,
+};
+
+enum daos_cpd_sub_flags {
+	DCSF_BULK		= (1 << 0),
+};
+
+enum daos_cpd_flags {
+	DCF_LEADER		= (1 << 0),
+};
+
+/**
+ * Each transaction (in spite of distributed one or simple individual
+ * modification) has a 'daos_cpd_sub_head', that is shared by the sub
+ * requests belong to the transaction.
+ */
+struct daos_cpd_sub_head {
+	struct dtx_id			 dcsh_xid;
+	/* The object ID is used to elect leader for DTX recovery.
+	 * If it is empty, then it is for a readonly transaction.
+	 */
+	daos_unit_oid_t			 dcsh_leader_oid;
+	daos_epoch_t			 dcsh_epoch;
+	struct dtx_memberships		*dcsh_mbs;
+};
+
+struct daos_cpd_update {
+	struct dcs_csum_info		*dcu_dkey_csum;
+	struct obj_iod_array		*dcu_iods;
+	uint32_t			 dcu_start_shard;
+	/* see daos_cpd_sub_flags. */
+	uint32_t			 dcu_flags;
+	union {
+		d_sg_list_t		*dcu_sgls;
+		crt_bulk_t		*dcu_bulks;
+	};
+};
+
+struct daos_cpd_punch {
+	daos_key_t			*dcp_akeys;
+};
+
+/**
+ * It is fake read style (daos fetch/enumerate/query) operation, only for set
+ * read timestamp on related target(s). It does not need iod/sgl information.
+ */
+struct daos_cpd_read {
+	daos_key_t			*dcr_akeys;
+};
+
+/**
+ * Each daos_cpd_sub_req stands for one simple DAOS operation that can be
+ * handled via single VOS API call.
+ */
+struct daos_cpd_sub_req {
+	/* See enum daos_cpd_sub_opc.*/
+	uint16_t			 dcsr_opc;
+	/* 32-bits alignment. */
+	uint16_t			 dcsr_padding;
+	uint32_t			 dcsr_nr;
+	daos_unit_oid_t			 dcsr_oid;
+	daos_key_t			 dcsr_dkey;
+	uint64_t			 dcsr_dkey_hash;
+	uint64_t			 dcsr_api_flags;
+	union {
+		struct daos_cpd_update	 dcsr_update;
+		struct daos_cpd_punch	 dcsr_punch;
+		struct daos_cpd_read	 dcsr_read;
+	};
+};
+
+/**
+ * The descriptor for a sub request to be executed on the specified DAOS target.
+ */
+struct daos_cpd_disp_req {
+	/* Shard index of the object for the sub request on this DAOS target. */
+	uint32_t			 dcdr_shard_idx;
+	/* The index of sub-request in the 'oci_sub_reqs' array. */
+	uint32_t			 dcdr_req_idx;
+};
+
+/**
+ * Each daos_cpd_disp_desc stands for one transaction on the DAOS target.
+ */
+struct daos_cpd_disp_desc {
+	/* The count of read sub requests for the DTX on the DAOS target. */
+	uint32_t			 dcdd_read_cnt;
+	/* The count of write sub requests for the DTX on the DAOS target.
+	 * It can be up to '2 ^ 16 - 1' at most because of the restriction
+	 * of 16-bits minor epoch on the server.
+	 */
+	uint16_t			 dcdd_write_cnt;
+	/* The index of its daos_cpd_sub_head in the 'oci_sub_heads' array. */
+	uint16_t			 dcdd_head_idx;
+	/* Pointer to 'daos_cpd_disp_req' array. */
+	struct daos_cpd_disp_req	*dcdd_reqs;
+};
+
+/**
+ * Each daos_cpd_disp_ent stands for one DAOS target. All the sub requests that
+ * will be executed on this DAOS targets (in spite of which transaction belongs
+ * to) will be linked into this entry.
+ */
+struct daos_cpd_disp_ent {
+	/* Rank of the shard. */
+	uint32_t			 dcde_rank;
+	/* Target xstream index on the DAOS target. */
+	uint16_t			 dcde_tgt_idx;
+	/* The size of 'daos_cpd_disp_desc' array. */
+	uint16_t			 dcde_desc_cnt;
+	/* Pointer to 'daos_cpd_disp_desc' array. */
+	struct daos_cpd_disp_desc	*dcde_descs;
+};
+
+#define DAOS_ISEQ_OBJ_CPD /* input fields */				     \
+	((uuid_t)			(oci_pool_uuid)		CRT_VAR)     \
+	((uuid_t)			(oci_co_hdl)		CRT_VAR)     \
+	((uuid_t)			(oci_co_uuid)		CRT_VAR)     \
+	((uint32_t)			(oci_map_ver)		CRT_VAR)     \
+	((uint32_t)			(oci_flags)		CRT_VAR)     \
+	((struct daos_cpd_sub_head)	(oci_sub_heads)		CRT_ARRAY)   \
+	/* The sub requests belong to the same transaction are adjacent. */  \
+	((struct daos_cpd_sub_req)	(oci_sub_reqs)		CRT_ARRAY)   \
+	/* oci_shard_ents[0] is for current DAOS target, not dispatch it. */ \
+	((struct daos_cpd_disp_ent)	(oci_shard_ents)	CRT_ARRAY)
+
+#define DAOS_OSEQ_OBJ_CPD /* output fields */				\
+	((int32_t)		(oco_ret)		CRT_VAR)	\
+	((uint32_t)		(oco_map_version)	CRT_VAR)	\
+	((uint64_t)		(oco_epoch)		CRT_VAR)	\
+	((int32_t)		(oco_sub_rets)		CRT_ARRAY)
+
+	/* Compouned replies. Eac sub reply responding to one independent
+	 * transaction.
+	 *
+	 * Resent:
+	 * If the CPD RPC needs to be resent, then all the sub requests in
+	 * the CPD RPC are resent. So the server side logic needs to track
+	 * sub requests resent one by one.
+	 *
+	 * Restart:
+	 * Support restart the specified independent DTX without affecting
+	 * other transactions in the same CPD RPC.
+	 */
+
+CRT_RPC_DECLARE(obj_cpd, DAOS_ISEQ_OBJ_CPD, DAOS_OSEQ_OBJ_CPD)
+
 static inline int
 obj_req_create(crt_context_t crt_ctx, crt_endpoint_t *tgt_ep, crt_opcode_t opc,
 	       crt_rpc_t **req)
@@ -350,5 +502,7 @@ obj_is_tgt_modification_opc(uint32_t opc)
 	       opc == DAOS_OBJ_RPC_TGT_PUNCH_DKEYS ||
 	       opc == DAOS_OBJ_RPC_TGT_PUNCH_AKEYS;
 }
+
+int proc_struct_dcs_csum_info(crt_proc_t proc, struct dcs_csum_info *csum);
 
 #endif /* __DAOS_OBJ_RPC_H__ */
